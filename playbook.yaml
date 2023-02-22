@@ -1,0 +1,90 @@
+--- 
+- name: install flask on ubuntu server cluster
+  hosts: all
+  become: yes
+
+  tasks:
+
+  - name: update repo
+    apt:
+      update_cache: yes
+  - name: install packages
+    apt:
+      pkg:
+        - python3 
+        - python3-pip
+        - python3-dev
+        - libssl-dev
+        - libffi-dev
+        - python3-setuptools 
+        - nginx
+        - virtualenv
+      state: latest
+
+
+
+  - name: Start service httpd, if not started
+    ansible.builtin.service:
+      name: nginx
+      state: started
+      enabled: yes
+  
+  - name: Example clone of a single branch
+    ansible.builtin.git:
+      repo: https://github.com/ossygarcia/calculator.git
+      dest: /home/ubuntu/calculator
+      single_branch: yes
+      version: master
+    
+  - name: This command will change the working directory to somedir/
+    ansible.builtin.shell:
+      cmd: python3 -m virtualenv ansible_env
+      chdir: calculator/  
+  - name: This command will change the working directory to somedir/
+    ansible.builtin.debug:
+      msg: "{{ansible_env['PWD']}}"
+ 
+  - name: Install specified python requirements in indicated (virtualenv)
+    ansible.builtin.pip:
+      requirements: /home/ubuntu/calculator/requirements.txt
+      virtualenv: /home/ubuntu/calculator/ansible_env
+      virtualenv_site_packages: yes
+  
+  
+  
+  - name: Copy file with owner and permissions
+    ansible.builtin.copy:
+      src: calc.service
+      dest: /etc/systemd/system/
+      owner: ubuntu
+      group: www-data
+      mode: '0644'
+  - name: Just force systemd to reread configs (2.4 and above)
+    ansible.builtin.systemd:
+      daemon_reload: true
+  - name: Start gunicorn service
+    ansible.builtin.service:
+      name: calc
+      state: started
+      enabled: yes
+  - name: delete 
+    ansible.builtin.shell:
+      cmd: rm /etc/nginx/sites-enabled/default
+
+  - name: Copy file default nginx with owner and permissions
+    ansible.builtin.copy:
+      src: default
+      dest: /etc/nginx/sites-enabled/
+      owner: ubuntu
+      group: www-data
+      mode: '0644'
+  - name: Start service httpd, if not started
+    ansible.builtin.service:
+      name: nginx
+      state: restarted
+      
+  
+  
+
+      
+  
